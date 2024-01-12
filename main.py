@@ -19,7 +19,7 @@ def main():
     The evaluation metrics of the model are printed at the end.
     """
     # Read the data from an Excel file
-    df = pd.read_excel('original_xlsx/original.xlsx')
+    df = pd.read_excel('xlsx/original.xlsx')
     
     # Sort the DataFrame by 'Transfer Date' in ascending order
     df = df.sort_values(by='Transfer Date', ascending=True)
@@ -29,6 +29,7 @@ def main():
 
     # Reduce the dimensionality of the dataset using reduce_dimensionality function
     df = reduce_dimensionality(df)
+    df.to_excel('xlsx/output.xlsx', index=False)
 
     # Initialize the FNNAM model
     model = FNNAM()

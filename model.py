@@ -150,9 +150,19 @@ class FNNAM:
             # Normalize the features if not already scaled
             scaler = StandardScaler()
             X = scaler.fit_transform(X)
+            X = X.reshape((X.shape[0], 1, X.shape[1]))
         
-        # Predict and transform the prediction back from the log scale
-        return np.expm1(self.model.predict(X).flatten())
+        predictions = np.expm1(self.model.predict(X).flatten())
+        predictions = np.where(predictions < 0, 0, predictions)
+
+        return predictions
+    
+    def add_prediction_column(self,df,target_column_name):
+        self.target_column_name = target_column_name
+        target_column = df.pop(self.target_column_name)
+        df['Predictions'] = self.make_prediction(df)
+        df[self.target_column_name] = target_column
+        return df
 
     def evaluate_model(self, plot_graph=False):
         """

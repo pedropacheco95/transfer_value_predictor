@@ -316,12 +316,9 @@ def reduce_dimensionality(df):
     df = df.select_dtypes(include=['number'])
 
     df = remove_outliers(df, target_column_name, max_value=35)
-    #df = remove_least_important_random_forest_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
-    #df = remove_least_important_linear_regression_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
+    df = remove_least_important_linear_regression_features(df, target_column_name, percent_to_remove=0.05, plot_graph=True)
 
     target_column = df.pop(target_column_name)
-    
-    #df = perform_pca(df, 0.99, plot_graph=True)
 
     df[target_column_name] = target_column
 

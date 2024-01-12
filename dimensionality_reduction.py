@@ -10,14 +10,37 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import LinearRegression
 
-def remove_outliers(df,column,min_value,max_value):
+def remove_outliers(df, column, min_value=None, max_value=None):
+    """
+    Remove outliers from a dataframe based on z-scores for a given column.
+    If min_value or max_value is None, that boundary is not considered.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to process.
+    column (str): The name of the column to check for outliers.
+    min_value (float, optional): The minimum z-score to consider for keeping the data.
+    max_value (float, optional): The maximum z-score to consider for keeping the data.
+
+    Returns:
+    pd.DataFrame: The dataframe with outliers removed.
+    """
     z_scores = stats.zscore(df[column])
-    large_outlier_mask = (z_scores > max_value)
-    small_outlier_mask = (z_scores < min_value)
+    large_outlier_mask = (z_scores > max_value) if max_value is not None else False
+    small_outlier_mask = (z_scores < min_value) if min_value is not None else False
     outlier_mask = large_outlier_mask | small_outlier_mask
     return df[~outlier_mask]
 
-def outlier_detection(dataframe,threshold):
+def outlier_detection(dataframe, threshold):
+    """
+    Detect and list columns with a percentage of outliers greater than the specified threshold.
+
+    Parameters:
+    dataframe (pd.DataFrame): The dataframe to analyze.
+    threshold (float): The threshold percentage for considering outliers.
+
+    Returns:
+    list: A list of column names that have more outliers than the threshold.
+    """
     Q1 = dataframe.quantile(0.25)
     Q3 = dataframe.quantile(0.75)
     IQR = Q3 - Q1
@@ -33,32 +56,71 @@ def outlier_detection(dataframe,threshold):
     return columns_to_drop
 
 def remove_columns_with_to_many_outliers(dataframe):
-    columns_to_drop = outlier_detection(dataframe,0.65)
+    """
+    Remove columns from a dataframe that have too many outliers.
+
+    Parameters:
+    dataframe (pd.DataFrame): The dataframe to process.
+
+    Returns:
+    pd.DataFrame: The dataframe with columns with too many outliers removed.
+    """
+    columns_to_drop = outlier_detection(dataframe, 0.65)
     return dataframe.drop(columns_to_drop, axis=1)
 
-def highly_correlated_columns(df, threshold=0.95,plot_graph=False):
+def highly_correlated_columns(df, threshold=0.95, plot_graph=False):
+    """
+    Identify columns in a dataframe that are highly correlated with each other.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to analyze for correlations.
+    threshold (float): The correlation coefficient above which columns are considered highly correlated.
+    plot_graph (bool): If True, a heatmap of the correlation matrix will be generated and saved.
+
+    Returns:
+    list: A list of column names that are highly correlated with other columns.
+    """
+    # Calculate the correlation matrix
     corr_matrix = df.corr()
+
+    # If plot_graph is True, plot and save the correlation heatmap
     if plot_graph:
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(8, 5))
         sns.heatmap(corr_matrix, center=0, annot=False, fmt=".2f", cmap='coolwarm',
                     square=True, linewidths=.5, cbar_kws={"shrink": .1}, 
-                    xticklabels=False, yticklabels=False) 
-
+                    xticklabels=False, yticklabels=False)
         plt.title("Correlation Matrix")
         output_directory = 'images/'
         output_filename = 'correlation.png'
         plt.savefig(output_directory + output_filename)
         plt.close()
 
+    # Create a mask for the upper triangle of the correlation matrix
     corr_matrix = df.corr().abs()
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+
+    # Identify columns with correlation greater than the threshold
     to_drop = [column for column in upper.columns if any(upper[column] > threshold)]
 
     return to_drop
 
-def remove_highly_correlated_columns(dataframe,threshold=0.95):
-    columns_to_drop = highly_correlated_columns(dataframe,threshold=threshold,plot_graph=True)
+def remove_highly_correlated_columns(dataframe, threshold=0.95):
+    """
+    Remove columns from a dataframe that are highly correlated with other columns.
+
+    Parameters:
+    dataframe (pd.DataFrame): The dataframe to process.
+    threshold (float): The correlation coefficient above which columns will be removed.
+
+    Returns:
+    pd.DataFrame: The dataframe with highly correlated columns removed.
+    """
+    # Identify highly correlated columns
+    columns_to_drop = highly_correlated_columns(dataframe, threshold=threshold, plot_graph=True)
+
+    # Drop the identified columns from the dataframe
     return dataframe.drop(columns_to_drop, axis=1)
+
 
 def perform_pca(dataframe, variance_threshold=0.9, plot_graph=False):
     """
@@ -140,7 +202,7 @@ def remove_least_important_random_forest_features(df, target_column, percent_to_
     if plot_graph:
         importance_series_sorted = importance_series.sort_values(ascending=False)
         sns.set(style="darkgrid")
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(8, 5))
         sns.barplot(x=importance_series_sorted.head(10).index, 
                     y=importance_series_sorted.head(10).values)
         plt.xticks(rotation=45)
@@ -198,7 +260,7 @@ def remove_least_important_linear_regression_features(df, target_column, percent
         top_features_to_plot = features_to_plot[:10]
         if len(top_features_to_plot) > 0:
             sns.set(style="darkgrid")
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(8, 5))
             top_n_importance = 1 / feature_ranking[features.columns.isin(top_features_to_plot)]
             sns.barplot(x=top_features_to_plot, y=top_n_importance)
             plt.xticks(rotation=45)
@@ -219,18 +281,26 @@ def remove_least_important_linear_regression_features(df, target_column, percent
     return df.drop(worst_features, axis=1)
 
 def reduce_dimensionality(df):
+    """
+    Perform a series of dimensionality reduction techniques on a dataframe.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to process.
+
+    Returns:
+    pd.DataFrame: The processed dataframe with reduced dimensionality.
+    """
     target_column_name = 'Transfer Value'
     df = df.sort_values(by='Transfer Date', ascending=True)
     df = df.select_dtypes(include=['number'])
 
-    df = remove_outliers(df,target_column_name,-1,50)
-    
+    df = remove_outliers(df, target_column_name, max_value=50)
     df = remove_least_important_random_forest_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
     df = remove_least_important_linear_regression_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
 
     target_column = df.pop(target_column_name)
     
-    df = perform_pca(df,.99,plot_graph=True)
+    df = perform_pca(df, 0.99, plot_graph=True)
 
     df[target_column_name] = target_column
 

@@ -1,22 +1,21 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import csv
-import unicodedata
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-import tensorflow as tf
-from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, LSTM, Dropout, Input, Softmax, Permute, Multiply, Lambda, BatchNormalization
+from tensorflow.keras.layers import Dense, Multiply, Input, Dropout, BatchNormalization
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from scipy import stats
 
 class FNNAM:
+    """
+    A class for building and training a Feedforward Neural Network with Attention Mechanism (FNNAM).
+    """
 
     def __init__(self):
+        """
+        Initialize the FNNAM model.
+        """
         self.model = None
         self.target_column_name = None
 
@@ -28,7 +27,13 @@ class FNNAM:
         self.test_y = None
         self.validation_y = None
 
-    def data_preparation(self,df):
+    def data_preparation(self, df):
+        """
+        Prepare data for training the model.
+
+        Parameters:
+        df (pd.DataFrame): The dataframe to process.
+        """
         # Preprocessing: Select features and the target
         features = df.drop(self.target_column_name, axis=1)  # Assuming all other columns are features
         target = df[self.target_column_name]
@@ -38,13 +43,12 @@ class FNNAM:
         scaler = StandardScaler()
         features_scaled = scaler.fit_transform(features)
 
+        # Calculate split points for training, validation, and test sets
         total_length = len(df)
-
-        # Calculate split points
         split_point1 = int(total_length * 0.85)
         split_point2 = int(total_length * 0.95)
 
-        # Split the dataset into training, validation, and test sets
+        # Split the dataset
         self.train_X = features_scaled[:split_point1, :]
         self.test_X = features_scaled[split_point1:split_point2, :]
         self.validation_X = features_scaled[split_point2:, :]
@@ -59,13 +63,16 @@ class FNNAM:
         self.validation_X = self.validation_X.reshape((self.validation_X.shape[0], 1, self.validation_X.shape[1]))
 
     def create_model(self):
+        """
+        Create the FNNAM model.
+        """
         def attention_layer(inputs, name):
             input_dim = int(inputs.shape[1])
             attention_probs = Dense(input_dim, activation='sigmoid', name=name)(inputs)
             attention_mul = Multiply()([inputs, attention_probs])
             return attention_mul
 
-        # Feedforward Model with Attention
+        # Feedforward Model with Attention Mechanism
         input_layer = Input(shape=(self.train_X.shape[1], self.train_X.shape[2]))
         attention_mul = attention_layer(input_layer, 'attention_probs')
         hidden_layer1 = Dense(64, activation='sigmoid')(attention_mul)
@@ -80,22 +87,26 @@ class FNNAM:
         output_layer = Dense(1)(dropout_layer3)
 
         fnnam_model = Model(inputs=[input_layer], outputs=output_layer)
-
-        # Compile the model
         fnnam_model.compile(optimizer='rmsprop', loss='mean_absolute_error')
 
         self.model = fnnam_model
-
         return fnnam_model
 
-    def train_model(self,plot_graph=False):
+    def train_model(self, plot_graph=False):
+        """
+        Train the FNNAM model.
+
+        Parameters:
+        plot_graph (bool): If True, plot the training and validation loss.
+        """
         # Train the model
-        history = self.model.fit(self.train_X, self.train_y, epochs=400, batch_size=256, validation_data=(self.test_X, self.test_y), verbose=2)
+        history = self.model.fit(self.train_X, self.train_y, epochs=400, batch_size=256, 
+                                 validation_data=(self.test_X, self.test_y), verbose=2)
 
         if plot_graph:
             # Plotting the loss
             sns.set(style="darkgrid")
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(8, 5))
             plt.plot(history.history['loss'], label='Train Loss')
             plt.plot(history.history['val_loss'], label='Validation Loss')
             plt.title('Model Loss Over Epochs')
@@ -108,8 +119,15 @@ class FNNAM:
             plt.close()
 
         return history
-    
-    def get_trained_model(self,df,target_column_name):
+
+    def get_trained_model(self, df, target_column_name):
+        """
+        Train the FNNAM model with the given dataframe and target column.
+
+        Parameters:
+        df (pd.DataFrame): The dataframe to use for training.
+        target_column_name (str): The name of the target column.
+        """
         self.target_column_name = target_column_name
         self.data_preparation(df)
         self.create_model()
@@ -117,24 +135,48 @@ class FNNAM:
         self.save_model()
         return self.evaluate_model(plot_graph=True)
     
-    def make_prediction(self,X,already_scaled=False):
+    def make_prediction(self, X, already_scaled=False):
+        """
+        Make predictions using the trained model.
+
+        Parameters:
+        X (np.array): Input features for making predictions.
+        already_scaled (bool): If True, assumes 'X' is already scaled. If False, scales 'X' before prediction.
+
+        Returns:
+        np.array: Predicted values.
+        """
         if not already_scaled:
-            # Normalize the features
+            # Normalize the features if not already scaled
             scaler = StandardScaler()
             X = scaler.fit_transform(X)
+        
+        # Predict and transform the prediction back from the log scale
         return np.expm1(self.model.predict(X).flatten())
-    
-    def evaluate_model(self,plot_graph=False):
+
+    def evaluate_model(self, plot_graph=False):
+        """
+        Evaluate the trained model on the validation set.
+
+        Parameters:
+        plot_graph (bool): If True, generates and saves a scatter plot of predictions vs actual values.
+
+        Returns:
+        dict: A dictionary containing MSE, MAE, and R2 score of the model on the validation set.
+        """
+        # Make predictions and transform them back from the log scale
         y_pred = np.expm1(self.model.predict(self.validation_X).flatten())
         exp_validation = np.expm1(self.validation_y)
+
+        # Calculate evaluation metrics
         mse = mean_squared_error(exp_validation, y_pred)
         mae = mean_absolute_error(exp_validation, y_pred)
         r2 = r2_score(exp_validation, y_pred)
 
         if plot_graph:
-            plt.figure(figsize=(10, 6))
+            # Plot scatter graph for actual vs predicted values
+            plt.figure(figsize=(8, 5))
             plt.scatter(exp_validation, y_pred, alpha=0.5)
-
             plt.title('Scatter Plot of Predictions vs Validation Feature')
             plt.xlabel('Selected Feature from Validation Data')
             plt.ylabel('Predicted Value')
@@ -143,8 +185,15 @@ class FNNAM:
             plt.savefig(output_directory + output_filename)
             plt.close()
 
-        return {'mse':mse,'mae':mae,'r2':r2}
-    
+        return {'mse': mse, 'mae': mae, 'r2': r2}
+
     def save_model(self):
+        """
+        Save the trained model to a file.
+
+        Returns:
+        bool: True if the model is successfully saved.
+        """
+        # Save the model to a Keras file
         self.model.save('fnnam.keras')
         return True

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Dense, Multiply, Input, Dropout, BatchNormalization
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 class FNNAM:
@@ -35,7 +36,7 @@ class FNNAM:
         df (pd.DataFrame): The dataframe to process.
         """
         # Preprocessing: Select features and the target
-        features = df.drop(self.target_column_name, axis=1)  # Assuming all other columns are features
+        features = df.drop(self.target_column_name, axis=1)
         target = df[self.target_column_name]
         target_transformed = np.log1p(target)
 
@@ -57,7 +58,6 @@ class FNNAM:
         self.test_y = target_transformed[split_point1:split_point2]
         self.validation_y = target_transformed[split_point2:]
 
-        # Reshape for LSTM: [samples, time steps, features]
         self.train_X = self.train_X.reshape((self.train_X.shape[0], 1, self.train_X.shape[1]))
         self.test_X = self.test_X.reshape((self.test_X.shape[0], 1, self.test_X.shape[1]))
         self.validation_X = self.validation_X.reshape((self.validation_X.shape[0], 1, self.validation_X.shape[1]))
@@ -87,7 +87,7 @@ class FNNAM:
         output_layer = Dense(1)(dropout_layer3)
 
         fnnam_model = Model(inputs=[input_layer], outputs=output_layer)
-        fnnam_model.compile(optimizer='rmsprop', loss='mean_absolute_error')
+        fnnam_model.compile(optimizer='rmsprop', loss='mean_squared_error')
 
         self.model = fnnam_model
         return fnnam_model

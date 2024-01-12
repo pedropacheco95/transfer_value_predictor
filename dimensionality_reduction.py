@@ -121,6 +121,27 @@ def remove_highly_correlated_columns(dataframe, threshold=0.95):
     # Drop the identified columns from the dataframe
     return dataframe.drop(columns_to_drop, axis=1)
 
+def select_subset(df, column, value):
+    """
+    Filters a pandas DataFrame based on a specified value in a given column, 
+    then returns the DataFrame without the specified column.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to be filtered.
+    column (str): The name of the column to filter on.
+    value: The value to match in the specified column.
+
+    Returns:
+    pd.DataFrame: A filtered DataFrame without the specified column.
+    """
+    # Filter the DataFrame based on the condition (column == value)
+    filtered_df = df[df[column] == value]
+
+    # Drop the specified column from the filtered DataFrame
+    result_df = filtered_df.drop(column, axis=1)
+
+    return result_df
+
 
 def perform_pca(dataframe, variance_threshold=0.9, plot_graph=False):
     """
@@ -294,13 +315,13 @@ def reduce_dimensionality(df):
     df = df.sort_values(by='Transfer Date', ascending=True)
     df = df.select_dtypes(include=['number'])
 
-    df = remove_outliers(df, target_column_name, max_value=50)
-    df = remove_least_important_random_forest_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
-    df = remove_least_important_linear_regression_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
+    df = remove_outliers(df, target_column_name, max_value=35)
+    #df = remove_least_important_random_forest_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
+    #df = remove_least_important_linear_regression_features(df, target_column_name, percent_to_remove=0.01, plot_graph=True)
 
     target_column = df.pop(target_column_name)
     
-    df = perform_pca(df, 0.99, plot_graph=True)
+    #df = perform_pca(df, 0.99, plot_graph=True)
 
     df[target_column_name] = target_column
 

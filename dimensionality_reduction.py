@@ -281,7 +281,7 @@ def remove_least_important_linear_regression_features(df, target_column, percent
         top_features_to_plot = features_to_plot[:10]
         if len(top_features_to_plot) > 0:
             sns.set(style="darkgrid")
-            plt.figure(figsize=(8, 5))
+            plt.figure(figsize=(15, 10))
             top_n_importance = 1 / feature_ranking[features.columns.isin(top_features_to_plot)]
             sns.barplot(x=top_features_to_plot, y=top_n_importance)
             plt.xticks(rotation=45)
